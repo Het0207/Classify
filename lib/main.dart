@@ -30,6 +30,8 @@ class PermissionPage extends StatefulWidget {
 }
 
 class _PermissionPageState extends State<PermissionPage> {
+  List<XFile> selectedImages = [];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -48,32 +50,47 @@ class _PermissionPageState extends State<PermissionPage> {
               print("Permission denied");
             } else {
               print("Permission granted");
-              _pickAndSaveImage();
+              _pickAndSaveImages();
             }
           },
-          child: const Text('Pick and Save Image'),
+          child: const Text('Pick and Save Images'),
         ),
       ),
     );
   }
 
-  Future<void> _pickAndSaveImage() async {
+  Future<void> _pickAndSaveImages() async {
     final picker = ImagePicker();
-    final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
-
-    if (pickedFile != null) {
+    List<XFile>? pickedFiles = await picker.pickMultiImage();
+    var directory = await Directory('/storage/emulated/0/Classifier').create(recursive: true);
+    // print(directory.path);
+    var directoryPath = directory.path;
+    if (pickedFiles != null && pickedFiles.isNotEmpty) {
       final bool permissionGranted = await _requestPermission(Permission.manageExternalStorage);
 
+      if (permissionGranted) {
         final Directory? downloadsDirectory = await getExternalStorageDirectory();
-        final File newImage = File('/storage/emulated/0/Android/image.jpg');
+        final date = DateTime.now().microsecondsSinceEpoch;
 
-        await newImage.writeAsBytes(await pickedFile.readAsBytes());
+        for (int i = 0; i < pickedFiles.length; i++) {
+          final File newImage = File('$directoryPath/$date$i.jpg');
+          await newImage.writeAsBytes(await pickedFiles[i].readAsBytes());
+          print('Image saved to downloads directory: ${newImage.path}');
 
-        print('Image saved to downloads directory: ${newImage.path}');
-
+        }
+        _showSnackBar('Images saved successfully');
+      }
     } else {
-      print('No image picked.');
+      print('No images picked.');
     }
+  }
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   Future<bool> _requestPermission(Permission permission) async {
