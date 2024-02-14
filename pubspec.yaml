@@ -39,6 +39,8 @@ dependencies:
   device_info_plus: ^9.1.1
   image_picker: ^1.0.7
   path_provider: ^2.1.2
+  http: ^1.1.0
+#  chaquopy: ^0.0.19
 
 dev_dependencies:
   flutter_test:
