@@ -1,12 +1,11 @@
-import 'dart:convert';
 import 'dart:io';
-
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:myporj/api.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:http_parser/http_parser.dart';
 
 void main() {
   runApp(const MyApp());
@@ -33,8 +32,6 @@ class PermissionPage extends StatefulWidget {
 
 class _PermissionPageState extends State<PermissionPage> {
   List<XFile> selectedImages = [];
-  var Data;
-  String QueryText = 'Query';
 
   @override
   Widget build(BuildContext context) {
@@ -47,36 +44,19 @@ class _PermissionPageState extends State<PermissionPage> {
         ),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              onPressed: () async {
-                var status = await Permission.photos.status;
-                if (status.isDenied) {
-                  print("Permission denied");
-                } else {
-                  print("Permission granted");
-                  var newData = await Getdata(Uri.parse("http://127.0.0.1:5000/api?Query=Hello"));
-                  var decodeData = jsonDecode(newData);
-                  setState(() {
-                    QueryText = decodeData['Query'];
-                    // print(decodeData);
-                  });
-                }
-              },
-              child: const Text('Pick and Save Images'),
-            ),
-            SizedBox(height: 20),
-            TextField(
-              controller: TextEditingController(text: QueryText),
-              readOnly: true,
-              decoration: InputDecoration(
-                labelText: 'Data',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
+        child: ElevatedButton(
+          onPressed: () async {
+            var status = await Permission.manageExternalStorage.status;
+            if (status.isDenied) {
+              print("Permission denied");
+              _requestPermission(Permission.manageExternalStorage);
+            } else {
+              print("Permission granted");
+              _pickAndSaveImage();
+              // _pickAndSaveImages();
+            }
+          },
+          child: const Text('Pick and Save Images'),
         ),
       ),
     );
@@ -114,6 +94,38 @@ class _PermissionPageState extends State<PermissionPage> {
         duration: Duration(seconds: 2),
       ),
     );
+  }
+  void doUpload (XFile image) async {
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse("https://c4109deb-207d-44c8-b794-9ce169e4ac1b-00-t7p5itfuiy9q.pike.replit.dev/upload"),
+    );
+    request.files.add(
+      http.MultipartFile(
+        'image',
+        File(image.path).readAsBytes().asStream(),
+        File(image.path).lengthSync(),
+        filename: "filename",
+        contentType: MediaType('image', 'jpeg'),
+      ),
+    );
+    print("request: " + request.toString());
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+    print(response.body);
+    // request.send().then((value) => print(value));
+  }
+  Future<void> _pickAndSaveImage() async{
+    // File image;
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      // print(image);
+      doUpload(image);
+    } else {
+      print('No image selected.');
+    }
   }
 
   Future<bool> _requestPermission(Permission permission) async {
